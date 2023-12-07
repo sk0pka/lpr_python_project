@@ -1,6 +1,4 @@
 import numpy as np
-import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
 
 # Constants
 epsilon = 1.0
@@ -49,14 +47,20 @@ num_particles = 10
 positions = np.random.rand(num_particles, 3)
 velocities = np.random.rand(num_particles, 3)
 
+# Arrays to store kinetic energy and temperature over time
+kinetic_energy = np.zeros(num_steps)
+temperature = np.zeros(num_steps)
+
 for step in range(num_steps):
     positions, velocities = verlet_integration(positions, velocities, dt)
+    
+    # Calculate kinetic energy and temperature
+    kinetic_energy[step] = 0.5 * mass * np.sum(velocities**2)
+    temperature[step] = 2 * kinetic_energy[step] / (3 * num_particles)  # Equipartition theorem
 
-# Visualization (3D plot)
-fig = plt.figure()
-ax = fig.add_subplot(111, projection='3d')
-ax.scatter(positions[:, 0], positions[:, 1], positions[:, 2])
-ax.set_xlabel('X')
-ax.set_ylabel('Y')
-ax.set_zlabel('Z')
-plt.show()
+# Print average kinetic energy and temperature
+average_kinetic_energy = np.mean(kinetic_energy)
+average_temperature = np.mean(temperature)
+
+print(f"Average Kinetic Energy: {average_kinetic_energy}")
+print(f"Average Temperature: {average_temperature}")
