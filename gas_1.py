@@ -6,25 +6,32 @@ sigma = 1.0
 mass = 1.0
 dt = 0.01  # Time step
 num_steps = 1000
+box_size = 10.0  # Size of the simulation box
 
 # Function to calculate LJ potential and force
-def lj_potential(r):
-    return 4 * epsilon * ((sigma / r)**12 - (sigma / r)**6)
-
 def lj_force(r):
     return 24 * epsilon / r * (2 * (sigma / r)**12 - (sigma / r)**6)
 
-# Function to perform Verlet integration
-def verlet_integration(positions, velocities, dt):
+# Function to apply periodic boundary conditions
+def apply_periodic_boundary_conditions(positions, box_size):
+    return np.mod(positions, box_size)
+
+# Function to perform Verlet integration with periodic boundary conditions
+def verlet_integration_periodic(positions, velocities, dt, box_size):
     num_particles = len(positions)
     forces = np.zeros_like(positions)
+
+    # Apply periodic boundary conditions
+    positions = apply_periodic_boundary_conditions(positions, box_size)
 
     # Calculate forces
     for i in range(num_particles):
         for j in range(i + 1, num_particles):
-            r = np.linalg.norm(positions[i] - positions[j])
-            force_ij = lj_force(r)
-            direction_ij = (positions[j] - positions[i]) / r
+            r = positions[j] - positions[i]
+            r = r - np.round(r / box_size) * box_size  # Account for PBC
+            distance = np.linalg.norm(r)
+            force_ij = lj_force(distance)
+            direction_ij = r / distance
             forces[i] += force_ij * direction_ij
             forces[j] -= force_ij * direction_ij
 
@@ -33,18 +40,23 @@ def verlet_integration(positions, velocities, dt):
     new_forces = np.zeros_like(positions)
     for i in range(num_particles):
         for j in range(i + 1, num_particles):
-            r = np.linalg.norm(positions[i] - positions[j])
-            force_ij = lj_force(r)
-            direction_ij = (positions[j] - positions[i]) / r
+            r = positions[j] - positions[i]
+            r = r - np.round(r / box_size) * box_size  # Account for PBC
+            distance = np.linalg.norm(r)
+            force_ij = lj_force(distance)
+            direction_ij = r / distance
             new_forces[i] += force_ij * direction_ij
             new_forces[j] -= force_ij * direction_ij
     velocities += 0.5 * (forces + new_forces) / mass * dt
+
+    # Apply periodic boundary conditions again
+    positions = apply_periodic_boundary_conditions(positions, box_size)
 
     return positions, velocities
 
 # Simulation
 num_particles = 10
-positions = np.random.rand(num_particles, 3)
+positions = np.random.rand(num_particles, 3) * box_size
 velocities = np.random.rand(num_particles, 3)
 
 # Arrays to store kinetic energy and temperature over time
@@ -52,7 +64,7 @@ kinetic_energy = np.zeros(num_steps)
 temperature = np.zeros(num_steps)
 
 for step in range(num_steps):
-    positions, velocities = verlet_integration(positions, velocities, dt)
+    positions, velocities = verlet_integration_periodic(positions, velocities, dt, box_size)
     
     # Calculate kinetic energy and temperature
     kinetic_energy[step] = 0.5 * mass * np.sum(velocities**2)
