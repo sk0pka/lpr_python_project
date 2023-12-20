@@ -2,7 +2,7 @@ import math
 import numpy as np
 import time
 
-from particles import Particle
+from particleclass import Particle
 
 # глобальные переменные
 N = int(27)  # количество частиц
@@ -147,6 +147,7 @@ def average_way(particles):
     summ = summ/N
     wayt.write(str(summ) + '\n')
 
+    
 def display_coordinates(particles):
     coord.write(str(N) + '\n')
     coord.write('Lattice="10.0 0.0 0.0 0.0 10.0 0.0 0.0 0.0 10.0" Properties=S:1:pos:R:3' + '\n')
@@ -176,7 +177,6 @@ def timego(particles, tick):
     maxwellx(particles)
     print(100, '%')
 
-
 def main():
     t = int(50000)  # ticks
     start = time.time()  # точка отсчета времени
@@ -187,7 +187,7 @@ def main():
     print(end)  # вывод времени
 
 
-if name == "main":
+if __name__ == "__main__":
     main()
 
 
