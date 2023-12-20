@@ -13,8 +13,7 @@ class Particle:
         self.velocity = velocity
         self.acceleration = acceleration
         self.last_position = np.zeros(3) + self.position
-        self.displacement = np.zeros(3)  # Accumulated movement
-
+        self.displacement = np.zeros(3)
         self.boundary_check(self.position)
 
     def boundary_check(self, position):

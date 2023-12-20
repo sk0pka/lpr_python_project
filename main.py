@@ -1,79 +1,105 @@
 import numpy as np
-import matplotlib as mp
+from particles import Particle
+import math
+import time
+
 
 # Constants
-epsilon = 1.0
-sigma = 1.0
-mass = 1.0
-dt = 0.01  # Time step
-num_steps = 1000
-box_size = 10.0  # Size of the simulation box
+NUM_PARTICLES = 64
+MAX_VELOCITY = 20.0
+TIME_STEP = 0.001
+BOX_LENGTH = 4
 
-# Function to calculate LJ potential and force
-def lj_force(r):
-    return 24 * epsilon / r * (2 * (sigma / r)**12 - (sigma / r)**6)
+# Output file handlers
+kinetic_energy_file = open('kinetic_energy.txt', 'w')
+potential_energy_file = open('potential_energy.txt', 'w')
+mechanical_energy_file = open('mechanical_energy.txt', 'w')
+maxwell_velocity_file = open('maxwell_velocity.txt', 'w')
+average_displacement_file = open('average_displacement.txt', 'w')
 
-# Function to apply periodic boundary conditions
-def apply_periodic_boundary_conditions(positions, box_size):
-    return np.mod(positions, box_size)
+def initialize_particles(particles):
+    """Generate initial cubic crystal lattice configuration."""
+    edge_length = int(np.cbrt(NUM_PARTICLES))
+    dl = BOX_LENGTH / edge_length
+    dl_half = dl / 2
+    n = 0
+    for i in range(edge_length):
+        for j in range(edge_length):
+            for k in range(edge_length):
+                c = dl_half + np.array([i, j, k]) * dl
+                v = np.random.uniform(-MAX_VELOCITY, MAX_VELOCITY, (3))
+                if n == NUM_PARTICLES - 1:
+                    v = np.zeros(3)
+                particles.append(Particle(c, v))
+                n += 1
 
-# Function to perform Verlet integration with periodic boundary conditions
-def verlet_integration_periodic(positions, velocities, dt, box_size):
-    num_particles = len(positions)
-    forces = np.zeros_like(positions)
+def reset_all_accelerations(particles):
+    """Reset all particle accelerations to zero."""
+    for particle in particles:
+        particle.reset_acceleration()
 
-    # Apply periodic boundary conditions
-    positions = apply_periodic_boundary_conditions(positions, box_size)
+def compute_force_between_particles(particle1, particle2):
+    """Compute interaction forces between two particles."""
+    r = Particle.relative_position(particle1, particle2)
+    force = 24 * (2 * np.power(np.linalg.norm(r), -14) - np.power(np.linalg.norm(r), -8)) * r
+    particle1.add_acceleration(-force)
+    particle2.add_acceleration(force)
 
-    # Calculate forces
-    for i in range(num_particles):
-        for j in range(i + 1, num_particles):
-            r = positions[j] - positions[i]
-            r = r - np.round(r / box_size) * box_size  # Account for PBC
-            distance = np.linalg.norm(r)
-            force_ij = lj_force(distance)
-            direction_ij = r / distance
-            forces[i] += force_ij * direction_ij
-            forces[j] -= force_ij * direction_ij
+def compute_all_accelerations(particles):
+    """Compute accelerations for all particles based on interaction forces."""
+    reset_all_accelerations(particles)
+    for i in range(NUM_PARTICLES - 1):
+        for j in range(i + 1, NUM_PARTICLES):
+            compute_force_between_particles(particles[i], particles[j])
 
-    # Update positions and velocities
-    positions += velocities * dt + 0.5 * forces / mass * dt**2
-    new_forces = np.zeros_like(positions)
-    for i in range(num_particles):
-        for j in range(i + 1, num_particles):
-            r = positions[j] - positions[i]
-            r = r - np.round(r / box_size) * box_size  # Account for PBC
-            distance = np.linalg.norm(r)
-            force_ij = lj_force(distance)
-            direction_ij = r / distance
-            new_forces[i] += force_ij * direction_ij
-            new_forces[j] -= force_ij * direction_ij
-    velocities += 0.5 * (forces + new_forces) / mass * dt
+def compute_and_record_potential_energy(particles):
+    """Compute and record the potential energy of the system."""
+    total_potential = 0.0
+    for i in range(NUM_PARTICLES - 1):
+        for j in range(i + 1, NUM_PARTICLES):
+            total_potential += Particle.compute_potential_energy(particles[i], particles[j])
+    potential_energy_file.write(f"{total_potential}\n")
+    return total_potential
 
-    # Apply periodic boundary conditions again
-    positions = apply_periodic_boundary_conditions(positions, box_size)
+def compute_and_record_kinetic_energy(particles):
+    """Compute and record the kinetic energy of the system."""
+    total_kinetic = sum([particle.kinetic_energy() for particle in particles])
+    kinetic_energy_file.write(f"{total_kinetic}\n")
+    return total_kinetic
 
-    return positions, velocities
+def display_coordinates(particles):
+    coord.write(str(len(particles)) + '\n')
+    coord.write('Lattice="10.0 0.0 0.0 0.0 10.0 0.0 0.0 0.0 10.0" Properties=S:1:pos:R:3' + '\n')
+    for particle in particles:
+        coord.write(' '.join(map(str, particle.c)) + '\n')
 
-# Simulation
-num_particles = 10
-positions = np.random.rand(num_particles, 3) * box_size
-velocities = np.random.rand(num_particles, 3)
+def timego(particles, tick):
+    print(0, '%')
+    initial_displacement(particles)
+    average_way(particles)
+    for i in range(1, tick):
+        move(particles)
+        average_way(particles)
+        if i % (tick//20) == 0:
+            print(i*100/tick, '%')
+    maxwellx(particles)
+    print(100, '%')
 
-# Arrays to store kinetic energy and temperature over time
-kinetic_energy = np.zeros(num_steps)
-temperature = np.zeros(num_steps)
+def main():
+    t = 50000  # ticks
+    start = time.time()
+    particles = []
+    initialize_particles(particles)
+    timego(particles, t)
+    end = time.time() - start
+    print(end)
 
-for step in range(num_steps):
-    positions, velocities = verlet_integration_periodic(positions, velocities, dt, box_size)
-    
-    # Calculate kinetic energy and temperature
-    kinetic_energy[step] = 0.5 * mass * np.sum(velocities**2)
-    temperature[step] = 2 * kinetic_energy[step] / (3 * num_particles)  # Equipartition theorem
+if __name__ == "__main__":
+    main()
 
-# Print average kinetic energy and temperature
-average_kinetic_energy = np.mean(kinetic_energy)
-average_temperature = np.mean(temperature)
-
-print(f"Average Kinetic Energy: {average_kinetic_energy}")
-print(f"Average Temperature: {average_temperature}")
+# Close the files with data
+kinetic_energy_file.close()
+potential_energy_file.close()
+mechanical_energy_file.close()
+maxwell_velocity_file.close()
+average_displacement_file.close()
