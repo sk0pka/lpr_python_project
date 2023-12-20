@@ -1,4 +1,5 @@
 import numpy as np
+import matplotlib as mp
 
 # Constants
 epsilon = 1.0
