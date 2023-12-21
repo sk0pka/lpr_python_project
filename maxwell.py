@@ -1,24 +1,24 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-#x = np.array([])
-#for i in np.arange(2000):
-#   x = np.append(x, (i))
+# Read data from file
+def read_data(filename):
+    with open(filename, 'r') as f:
+        return np.array([float(line.strip()) for line in f])
 
-y = np.array([])
-f = open('maxw.txt')
-for line in f:
-    y = np.append(y, (float(line)))
-f.close()
-
-v_x = y
+# Read velocities from file
+v_x = read_data('maxw.txt')
 N = len(v_x)
 
-T = np.sum(v_x**2)
-plt.hist(v_x, bins=N//3, density=True)
+# Calculate temperature
+T = np.sum(v_x ** 2) / N
 
-print(T/N)
-
+# Plotting
+plt.hist(v_x, bins=N // 3, density=True)
 plt.title(r'Распределение проекции скоростей частиц на ось X', fontsize=14)
+plt.xlabel(r'Скорость', fontsize=12)
+plt.ylabel(r'Плотность', fontsize=12)
 
 plt.show()
+
+print(T)
