@@ -1,201 +1,167 @@
 import math
 import numpy as np
 import time
-
 from particleclass import Particle
 
-# глобальные переменные
-N = int(27)  # количество частиц
-Vmax = float(20.0)  # максимальная скорость частицы
-dt = float(0.001)  # тик
-Leng = int(4)  # длина коробки
-half = Leng/2  # половина длины коробки
+# Global constants
+N = 8
+VMAX = 20.0
+DT = 0.001
+LENG = 4
+HALF = LENG / 2
 
-
-# opens files with data
-impt = open('imp.txt', 'w')
+# Open output files
 kint = open('kin.txt', 'w')
 pott = open('pot.txt', 'w')
 mect = open('mec.txt', 'w')
 maxwt = open('maxw.txt', 'w')
 wayt = open('way.txt', 'w')
-coord = open('coord.txt', 'w')
 
 
 def cell_gen(particles):
-    # cell generation
+    """Generate particles in a 3D grid."""
     n = 0
     particle_is_even = True
     edge = math.ceil(np.cbrt(N))
-    dl = Leng/edge
-    dl_half = dl/2
-    for i in np.arange(edge):
-        for j in np.arange(edge):
-            for k in np.arange(edge):
-                c = dl_half + np.array([i, j, k])*dl
-                if particle_is_even:
-                    v = np.random.uniform(-Vmax, Vmax, (3))
-                    if (n == N-1):
-                        v = np.zeros(3)
-                        particles.append(Particle(c, v))
-                        return 0
-                    particles.append(Particle(c, v))
-                    particle_is_even = False
-                    n += 1
-                else:
-                    particles.append(Particle(c, -v))
-                    if (n == N-1):
-                        return 0
-                    particle_is_even = True
-                    n += 1
+    dl = LENG / edge
+    dl_half = dl / 2
+    for i in range(edge):
+        for j in range(edge):
+            for k in range(edge):
+                c = dl_half + np.array([i, j, k]) * dl
+                v = np.random.uniform(-VMAX, VMAX, 3)
+                particles.append(Particle(c, v) if particle_is_even else Particle(c, -v))
+                n += 1
+                if n == N:
+                    return
 
 
 def null_axel(particles):
-    # nullifies all accelerations
-    for i in np.arange(N):
-        particles[i].a = np.zeros(3)
+    """Nullify all accelerations."""
+    for particle in particles:
+        particle.a = np.zeros(3)
 
 
 def axel(part, part1):
-    # calculates the forces of interaction between these particles
-    # and changes their accelerations
+    """Calculate forces of interaction between particles."""
     vect_r = Particle.vec_to_virtual_copy(part.c, part1.c)
     abs_r = np.linalg.norm(vect_r)
-    ac = 24*(2*np.power(abs_r, -14) - np.power(abs_r, -8))*vect_r
+    ac = 24 * (2 * abs_r ** -14 - abs_r ** -8) * vect_r
     part.a -= ac
     part1.a += ac
 
 
 def calc_axel(particles):
-    # calculates the accelerations of all particles and changes them
+    """Calculate accelerations for all particles."""
     null_axel(particles)
-    for i in np.arange(N-1):
-        for j in np.arange(i+1, N):
+    for i in range(N - 1):
+        for j in range(i + 1, N):
             axel(particles[i], particles[j])
 
 
 def first_move(particles):
-    # moves all particles for the first time
+    """Move all particles for the first time."""
     calc_axel(particles)
-    for i in np.arange(N):
-        Particle.first_move(particles[i])
+    for particle in particles:
+        particle.first_move()
 
 
 def move(particles):
-    # moves all particles
+    """Move all particles."""
     calc_axel(particles)
-    for i in np.arange(N):
-        Particle.move(particles[i])
+    for particle in particles:
+        particle.move()
 
 
 def potentwo(part, part1):
-    # calculates the potential energy of the interaction of two particles
+    """Calculate potential energy between two particles."""
     vect_r = Particle.vec_to_virtual_copy(part.c, part1.c)
     abs_r = np.linalg.norm(vect_r)
-    u = 4*(np.power(abs_r, -12) - np.power(abs_r, -6))
-    return u
+    return 4 * (abs_r ** -12 - abs_r ** -6)
 
 
 def impulse(particles):
-    # calculates the total momentum of the system
-    summ = np.zeros(3)
-    for i in np.arange(N):
-        summ += particles[i].v
-    impt.write(np.array2string(summ) + '\n')
+    """Calculate total momentum of the system."""
+    total_momentum = np.sum([particle.v for particle in particles], axis=0)
+    # impt.write(np.array2string(total_momentum) + '\n') # Uncomment if needed
 
 
 def poten_eng(particles):
-    # calculates the potential energy of the interaction of all particles
-    pot = 0.0
-    for i in np.arange(N-1):
-        for j in np.arange(i+1, N):
-            pot += potentwo(particles[i], particles[j])
-    pott.write(str(pot) + '\n')
+    """Calculate potential energy of the system."""
+    pot = sum(potentwo(particles[i], particles[j]) for i in range(N - 1) for j in range(i + 1, N))
+    pott.write(f"{pot}\n")
     return pot
 
 
 def kinetic_eng(particles):
-    # calculates the total kinetic energy of the system
-    kin = 0.0
-    for i in np.arange(N):
-        kin += (np.linalg.norm(particles[i].v)**2)/2
-    kint.write(str(kin) + '\n')
+    """Calculate total kinetic energy of the system."""
+    kin = sum(np.linalg.norm(particle.v) ** 2 / 2 for particle in particles)
+    kint.write(f"{kin}\n")
     return kin
 
 
 def energy(particles):
-    # calculates the total mechanical energy of the system
+    """Calculate total mechanical energy of the system."""
     pot = poten_eng(particles)
     kin = kinetic_eng(particles)
-    summ = pot + kin
-    mect.write(str(summ) + '\n')
+    total_energy = pot + kin
+    mect.write(f"{total_energy}\n")
 
 
 def maxwellx(particles):
-    list = np.zeros(N)
-    for i in np.arange(N):
-        list[i] = particles[i].v[0]
-    list = np.sort(list)
-    for i in np.arange(N):
-        maxwt.write(str(list[i]) + '\n')
+    """Write maxwell distribution in x-direction."""
+    velocities = sorted([particle.v[0] for particle in particles])
+    for velocity in velocities:
+        maxwt.write(f"{velocity}\n")
 
 
 def average_way(particles):
-    summ = 0.0
-    for i in np.arange(N):
-        summ += (np.linalg.norm(particles[i].way))**2
-    summ = summ/N
-    wayt.write(str(summ) + '\n')
+    """Calculate average squared displacement."""
+    total_disp = sum(np.linalg.norm(particle.way) ** 2 for particle in particles)
+    avg_disp = total_disp / N
+    wayt.write(f"{avg_disp}\n")
 
-    
+
 def display_coordinates(particles):
-    coord.write(str(N) + '\n')
-    coord.write('Lattice="10.0 0.0 0.0 0.0 10.0 0.0 0.0 0.0 10.0" Properties=S:1:pos:R:3' + '\n')
-    for i in np.arange(N):
-        for j in np.arange(3):
-            coord.write(str(particles[i].c[j]) + ' ')
-        coord.write('\n')
+    """Write particle coordinates to a file."""
+    coord.write(f"{N}\n")
+    coord.write('Lattice="10.0 0.0 0.0 0.0 10.0 0.0 0.0 0.0 10.0" Properties=S:1:pos:R:3\n')
+    for particle in particles:
+        coord.write(" ".join(map(str, particle.c)) + "\n")
 
 
 def timego(particles, tick):
-    "starts the simulation"
-    # display_coordinates(particles)
-    print(0, '%')
+    """Start the simulation."""
+    print("0%")
     first_move(particles)
-    # display_coordinates(particles)
-    impulse(particles)
     energy(particles)
     average_way(particles)
-    for i in np.arange(1, tick):
+    for i in range(1, tick):
         move(particles)
-        # display_coordinates(particles)
-        impulse(particles) 
         energy(particles)
         average_way(particles)
-        if i % (tick//20) == 0:
-            print(i*100/tick, '%')
+        if i % (tick // 20) == 0:
+            print(f"{i * 100 / tick}%")
     maxwellx(particles)
-    print(100, '%')
+    print("100%")
+
 
 def main():
-    t = int(50000)  # ticks
-    start = time.time()  # точка отсчета времени
-    particles = [] # particle array
-    cell_gen(particles)  # генерация сеткой  
+    t = 50000
+    start = time.time()
+    particles = []
+    cell_gen(particles)
     timego(particles, t)
-    end = time.time() - start  # собственно время работы программы
-    print(end)  # вывод времени
+    end = time.time() - start
+    print(end)
 
 
 if __name__ == "__main__":
     main()
 
-
-# close files with data
-impt.close()
+# Close files
 kint.close()
 mect.close()
 pott.close()
 maxwt.close()
 wayt.close()
-coord.close()
