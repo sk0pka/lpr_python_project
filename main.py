@@ -1,7 +1,7 @@
 import math
 import numpy as np
 import time
-from particleclass import Particle
+from particles import Particle
 
 # Global constants
 N = 8
